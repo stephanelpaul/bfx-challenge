@@ -25,7 +25,23 @@ async function sendOrder(orderData) {
   };
 
   return new Promise((resolve, reject) => {
-    peer.request('rpc_order_book', addOrderPayload, { timeout: 10000 }, (err, data) => {
+    peer.request('order_book:service', addOrderPayload, { timeout: 10000 }, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
+
+async function matchOrders() {
+  const matchOrderPayload = {
+    method: 'matchOrders',
+  };
+
+  return new Promise((resolve, reject) => {
+    peer.request('order_book:service', matchOrderPayload, { timeout: 10000 }, (err, data) => {
       if (err) {
         reject(err);
       } else {
@@ -41,12 +57,11 @@ rl.on('line', async (line) => {
   const [command, ...args] = line.trim().split(' ');
 
   if (command === 'addOrder') {
-    if (args.length !== 4) {
-      console.log('Usage: addOrder <id> <side> <price> <quantity>');
+    if (args.length !== 3) {
+      console.log('Usage: addOrder <side> <price> <quantity>');
     } else {
-      const [id, side, price, quantity] = args;
+      const [side, price, quantity] = args;
       const orderData = {
-        id,
         side,
         price: parseFloat(price),
         quantity: parseInt(quantity, 10),
@@ -76,3 +91,8 @@ rl.on('line', async (line) => {
   console.log('Exiting REPL.');
   process.exit(0);
 });
+
+
+process.on('uncaughtException', function (err) {
+  console.error(err);
+}); 

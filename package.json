@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server",
     "clien": "node client",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
@@ -14,5 +14,8 @@
     "grenache-nodejs-http": "^0.7.13",
     "grenache-nodejs-link": "^1.0.0",
     "grenache-nodejs-ws": "^0.7.10"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }

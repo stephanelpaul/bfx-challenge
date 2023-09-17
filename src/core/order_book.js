@@ -1,23 +1,24 @@
 const Lock = require('./lock');
 const Order = require('./order');
+const Trade = require('./trade');
 
 class OrderBook {
     constructor() {
-        this.bids = [];
-        this.asks = [];
-        this.orderLock = new Lock();
+        this._bids = [];
+        this._asks = [];
+        this._trades = [];
+        this._orderLock = new Lock();
     }
 
     async addOrder(orderData) {
         const order = new Order(
-            orderData.id,
             orderData.side,
             orderData.price,
             orderData.quantity,
             orderData.timestamp
         )
 
-        await this.orderLock.acquire();
+        await this._orderLock.acquire();
 
         try {
             if (order.side === 'buy') {
@@ -26,25 +27,36 @@ class OrderBook {
                 this.addSellOrder(order);
             }
         } finally {
-            this.orderLock.release();
+            this._orderLock.release();
         }
     }
 
     addBuyOrder(order) {
-        let i = this.bids.length - 1;
-        while (i >= 0 && this.bids[i].price < order.price) {
+        if (this._bids.length === 0) {
+            this._bids.push(order);
+            return;
+        }
+    
+        let i = this._bids.length - 1;
+        while (i >= 0 && this._bids[i].price < order.price) {
             i--;
         }
-        this.bids.replace(i + 1, 0, order);
+    
+        this._bids.splice(i + 1, 0, order);
     }
 
-    addSellOrder() {
+    addSellOrder(order) {
+        if (this._asks.length === 0) {
+            this._asks.push(order);
+            return;
+        }
+    
         let i = 0;
-        while(i < this.asks.length && this.asks[i].price < order.price) {
+        while (i < this._asks.length && this._asks[i].price < order.price) {
             i++;
         }
-
-        this.asks.splice(i, 0, order);
+    
+        this._asks.splice(i, 0, order);
     }
 
     async matchOrders() {
@@ -55,7 +67,7 @@ class OrderBook {
         const buyOrderLock = new Lock();
 
 
-        while ( i < this.asks.length && j < this.bids.length) {
+        while ( i < this._asks.length && j < this._bids.length) {
             let askOrder, bidOrder;
 
             await Promise.all([
@@ -63,9 +75,9 @@ class OrderBook {
                 buyOrderLock.acquire()
             ]);
 
-            if (i < this.asks.length && j < this.bids.length) {
-                askOrder = this.asks[i];
-                bidOrder = this.bids[j];
+            if (i < this._asks.length && j < this._bids.length) {
+                askOrder = this._asks[i];
+                bidOrder = this._bids[j];
             }
 
             sellOrderLock.release();
@@ -89,17 +101,19 @@ class OrderBook {
                 bidOrder.quantity -= tradeQuantity;
 
                 if (askOrder.quantity === 0) {
-                    this.asks.splice(i, 1);
+                    this._asks.splice(i, 1);
                 }
 
                 if (bidOrder.quantity === 0) {
-                    this.bids.splice(j, 1)
+                    this._bids.splice(j, 1)
                 }
 
                 sellOrderLock.release();
                 buyOrderLock.release();
 
                 const trade = new Trade(tradePrice, tradeQuantity, tradeTimestamp);
+
+                this._trades.push(trade);
             } else {
                 if (askOrder.price < bidOrder.price) {
                     i++;
@@ -108,6 +122,14 @@ class OrderBook {
                 }
             }
         }
+    }
+
+    get bids() {
+        return this._bids;
+    }
+
+    get asks() {
+        return this._asks;
     }
 }
 

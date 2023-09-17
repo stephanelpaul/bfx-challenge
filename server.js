@@ -20,17 +20,22 @@ console.info(`service started on ${port}`)
 const orderBook = new OrderBook();
 
 setInterval(function () {
-    link.announce('rpc_order_book', service.port, {})
+    link.announce('order_book:service', service.port, {})
 }, 1000)
 
-service.on('request', async (rid, key, payload, handler) => {
+service.on('request', async (rid, _key, payload, handler) => {
     if (payload.method === 'addOrder') {
         await orderBook.addOrder(payload.order);
-        handler.reply(null, {msg: 'Order added successfully'});
+        handler.reply(null, {requestId: rid,  bids: orderBook.bids, asks: orderBook.asks});
     } else if (payload.method === 'matchOrders') {
         await orderBook.matchOrders();
-        handler.reply(null, { msg: 'Orders matched successfully' });
+        handler.reply(null, { orderBook });
+        handler.reply(null, {requestId: rid,  trades: orderBook.trades});
     } else {
         handler.reply(null, { msg: 'Unknown method' });
     }
 })
+
+process.on('uncaughtException', function (err) {
+    console.error(err);
+}); 
